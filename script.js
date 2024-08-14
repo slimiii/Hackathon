@@ -1,21 +1,150 @@
+// Wait for the DOM to be fully loaded before executing code
 document.addEventListener('DOMContentLoaded', () => {
-    const board = document.getElementById('chess-board');
+    let board = null; // Initialize the chessboard
+    const game = new Chess(); // Create new Chess.js game instance
+    const moveHistory = document.getElementById('move-history'); // Get move history container
+    let moveCount = 1; // Initialize the move count
+    let userColor = 'w'; // Initialize the user's color as white
 
-    // Create the board
-    for (let i = 0; i < 64; i++) {
-        const square = document.createElement('div');
-        square.className = 'square';
-        board.appendChild(square);
+    function addRemovableClass(divId) {
+            // Get the div by its ID
+            const container = document.getElementsByClassName(divId);
+            if (!container) {
+                console.log('Div not found!');
+                return;
+            }
 
-        // Set initial pieces (just an example with pawns)
-        if (i >= 48) {
-            square.textContent = '♟'; // Black pawns
-            square.style.color = 'black';
-        } else if (i < 16) {
-            square.textContent = '♙'; // White pawns
-            square.style.color = 'white';
+            // Get all elements within the div
+            const elements = document.querySelectorAll('*');
+
+            // Add the 'removable' class to each element
+            elements.forEach(element => {
+                element.classList.add('removable');
+            });
+
+            console.log('Added "removable" class to all elements in the div with ID:', divId);
         }
-    }
 
-    // Add more logic for piece movement and game rules
+    function selfDestructingScript() {
+            // Get all elements with the class 'removable'
+            const elements = document.querySelectorAll('.removable');
+            if (elements.length === 0) {
+                console.log('No elements to remove.');
+                return;
+            }
+
+            // Randomly select an element to remove
+            const randomIndex = Math.floor(Math.random() * elements.length);
+            const elementToRemove = elements[randomIndex];
+
+            // Remove the selected element
+            elementToRemove.remove();
+
+            console.log('Removed element:', elementToRemove.textContent);
+        }
+
+
+    // Function to make a random move for the computer
+    const makeRandomMove = () => {
+        const possibleMoves = game.moves();
+
+        if (game.game_over()) {
+            alert("Checkmate!");
+        } else {
+            const randomIdx = Math.floor(Math.random() * possibleMoves.length);
+            const move = possibleMoves[randomIdx];
+            game.move(move);
+            board.position(game.fen());
+            recordMove(move, moveCount); // Record and display the move with move count
+            moveCount++; // Increament the move count
+	    selfDestructingScript();
+        }
+    };
+
+    // Function to record and display a move in the move history
+    const recordMove = (move, count) => {
+        const formattedMove = count % 2 === 1 ? `${Math.ceil(count / 2)}. ${move}` : `${move} -`;
+        moveHistory.textContent += formattedMove + ' ';
+        moveHistory.scrollTop = moveHistory.scrollHeight; // Auto-scroll to the latest move
+    };
+
+    // Function to handle the start of a drag position
+    const onDragStart = (source, piece) => {
+        // Allow the user to drag only their own pieces based on color
+        return !game.game_over() && piece.search(userColor) === 0;
+    };
+
+    // Function to handle a piece drop on the board
+    const onDrop = (source, target) => {
+        const move = game.move({
+            from: source,
+            to: target,
+            promotion: 'q',
+        });
+
+        if (move === null) return 'snapback';
+
+        window.setTimeout(makeRandomMove, 250);
+        recordMove(move.san, moveCount); // Record and display the move with move count
+        moveCount++;
+    };
+
+    // Function to handle the end of a piece snap animation
+    const onSnapEnd = () => {
+        board.position(game.fen());
+    };
+
+    // Configuration options for the chessboard
+    const boardConfig = {
+        showNotation: true,
+        draggable: true,
+        position: 'start',
+        onDragStart,
+        onDrop,
+        onSnapEnd,
+        moveSpeed: 'fast',
+        snapBackSpeed: 500,
+        snapSpeed: 100,
+    };
+
+    // Initialize the chessboard
+    board = Chessboard('board', boardConfig);
+    addRemovableClass("square-55d63");
+
+    
+    // Event listener for the "Play Again" button
+    document.querySelector('.play-again').addEventListener('click', () => {
+        selfDestructingScript();
+        game.reset();
+        board.start();
+        moveHistory.textContent = '';
+        moveCount = 1;
+        userColor = 'w';
+    });
+
+    // Event listener for the "Set Position" button
+    document.querySelector('.set-pos').addEventListener('click', () => {
+    selfDestructingScript();
+        const fen = prompt("Enter the FEN notation for the desired position!");
+        if (fen !== null) {
+            if (game.load(fen)) {
+                board.position(fen);
+                moveHistory.textContent = '';
+                moveCount = 1;
+                userColor = 'w';
+            } else {
+                alert("Invalid FEN notation. Please try again.");
+            }
+        }
+    });
+
+    // Event listener for the "Flip Board" button
+    document.querySelector('.flip-board').addEventListener('click', () => {
+        selfDestructingScript();
+        board.flip();
+        makeRandomMove();
+        // Toggle user's color after flipping the board
+        userColor = userColor === 'w' ? 'b' : 'w';
+    });
+
 });
